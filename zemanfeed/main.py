@@ -113,7 +113,7 @@ class App(Cmd):
 
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker, scoped_session
-        self.engine = create_engine(self.db_config.constr, pool_recycle=3600)
+        self.engine = create_engine(self.db_config.constr, pool_recycle=3600, encoding='utf8', convert_unicode=True)
         self.session = scoped_session(sessionmaker(bind=self.engine))
 
         # Make sure tables are created

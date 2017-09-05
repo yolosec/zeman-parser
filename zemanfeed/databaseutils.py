@@ -76,7 +76,7 @@ def process_db_config(js):
         if user is None or passwd is None or db is None:
             raise ValueError('User, password and database are mandatory for DB type ' + dbtype)
 
-        con_string = '%s%s://%s:%s@%s%s/%s' % (dbtype, dbengine_str, user, passwd, host_str, port_str, db)
+        con_string = '%s%s://%s:%s@%s%s/%s?charset=utf8' % (dbtype, dbengine_str, user, passwd, host_str, port_str, db)
 
     elif dbtype == 'sqlite':
         if dbfile is None:
