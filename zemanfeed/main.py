@@ -433,6 +433,7 @@ class App(Cmd):
             if self.stop_event.is_set():
                 break
 
+            message = None
             try:
                 # sleep before page load. If there is an exception or empty page we sleep
                 # to avoid hitting usage limits.
@@ -445,6 +446,7 @@ class App(Cmd):
 
                 donation.publish_attempts += 1
                 donation.publish_last_attempt_at = salch.func.now()
+                s.commit()
 
                 self.api.update_status(message)
 
@@ -458,6 +460,15 @@ class App(Cmd):
                 logger.warning('Rate limit hit, sleep a while. %s' % rle)
                 self.interruptible_sleep(5*60)
                 break
+
+            except tweepy.TweepError as te:
+                if te.api_code == 403:
+                    logger.error('Tweepy error 403 - cannot tweet this: %s' % (message))
+                    continue
+
+                else:
+                    logger.error('Generic tweepy error: %s : %s' % (te, donation.id))
+                    continue
 
             except Exception as ex:
                 logger.error('Exception in API publish: %s' % ex)
