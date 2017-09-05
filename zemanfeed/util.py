@@ -20,6 +20,8 @@ import subprocess
 import time
 import types
 from datetime import datetime
+import dateutil
+import dateutil.parser
 
 import OpenSSL
 from six import iteritems
@@ -681,3 +683,28 @@ def unix_time(dt):
     epoch = datetime.utcfromtimestamp(0)
     return float((dt - epoch).total_seconds())
 
+
+def try_parse_datetime_string(x):
+    """
+    Tries to parse try_parse_datetime_string
+    :param str:
+    :return:
+    """
+    try:
+        return dateutil.parser.parse(x)
+    except:
+        pass
+    return None
+
+
+def try_get_datetime_from_timestamp(x):
+    """
+    Converts number of seconds to datetime
+    :param x:
+    :return:
+    """
+    try:
+        return datetime.datetime.fromtimestamp(x)
+    except:
+        pass
+    return None
