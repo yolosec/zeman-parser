@@ -233,7 +233,7 @@ class App(Cmd):
 
                 finally:
                     util.silent_close(s)
-                    self.interruptible_sleep(20)
+                    self.interruptible_sleep(self.args.sleep_crawl)
 
         except Exception as e:
             traceback.print_exc()
@@ -436,7 +436,7 @@ class App(Cmd):
             try:
                 # sleep before page load. If there is an exception or empty page we sleep
                 # to avoid hitting usage limits.
-                self.interruptible_sleep(5)
+                self.interruptible_sleep(self.args.sleep)
 
                 message = self.donation_to_msg(donation)
                 if self.args.dryrun:
@@ -559,8 +559,11 @@ class App(Cmd):
         parser.add_argument('--test', dest='test', action='store_const', const=True,
                             help='enables test mode')
 
-        parser.add_argument('-s', '--sleep', dest='sleep', default=30*60,
-                            help='timeout sleep between scanning rounds in seconds')
+        parser.add_argument('--sleep-crawl', dest='sleep_crawl', default=3*60, type=float,
+                            help='sleep between crawl cycles')
+
+        parser.add_argument('-s', '--sleep', dest='sleep', default=20, type=float,
+                            help='sleep between post publish')
 
         parser.add_argument('-f', '--dry', dest='dryrun', action='store_const', const=True, default=False,
                             help='dry run (no twitter action taken)')
