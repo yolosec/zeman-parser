@@ -497,7 +497,8 @@ class App(Cmd):
             initials += x[0]
 
         money = "{}Kč".format(donation.amount).replace('.', ',')
-        msg = "{}({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
+        # msg = "{}({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
+        msg = "{}: {}".format(money, util.utf8ize(donation.message))
         return util.smart_truncate(msg)
 
     #
