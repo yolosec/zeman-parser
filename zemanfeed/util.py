@@ -28,6 +28,11 @@ import errors
 
 logger = logging.getLogger(__name__)
 
+def smart_truncate(content, length=140, suffix='...'):
+    if len(content) <= length:
+        return content
+    else:
+        return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
 
 def make_or_verify_dir(directory, mode=0o755, uid=0, strict=False):
     """Make sure directory exists with proper permissions.
