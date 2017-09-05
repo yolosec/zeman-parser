@@ -27,10 +27,12 @@ import errors
 logger = logging.getLogger(__name__)
 
 
-def smart_truncate(content, length=140, suffix=u"\u2026"):
+def smart_truncate(content, length=140, suffix=None):
     if len(content) <= length:
         return content
     else:
+        if suffix is None:
+            suffix = u"\u2026".encode('utf8')
         return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
 
 
