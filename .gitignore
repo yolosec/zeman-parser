@@ -95,3 +95,5 @@ db.config
 db.json
 config.json
 
+alembic.ini
+
