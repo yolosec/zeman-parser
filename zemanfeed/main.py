@@ -502,7 +502,7 @@ class App(Cmd):
             initials += x[0]
 
         money = "{}Kč".format(donation.amount).replace('.', ',')
-        if len(donation.message) == 0:
+        if donation.message is None or len(donation.message) == 0:
             return money
         
         # msg = "{}({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
