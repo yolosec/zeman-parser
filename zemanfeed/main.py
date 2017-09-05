@@ -251,6 +251,15 @@ class App(Cmd):
         # TODO: add
         # TODO: crawl page, add new donations to the database (not added before).
 
+        # Template to add to DB
+        entity = DbDonations()
+        entity.created_at = salch.func.now()
+        entity.received_at = util.try_parse_datetime_string('05.09.2017')
+        entity.message = 'test'
+        entity.amount = 0.1
+        # s.add(entity)
+        # s.commit()
+
     #
     # Publish
     #
