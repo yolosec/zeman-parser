@@ -24,6 +24,7 @@ class DbDonations(Base):
     page_idx = Column(Integer, nullable=False, default=0, index=True)
     uid = Column(String(64), nullable=True, index=True)
 
+    skip_msg = Column(SmallInteger, nullable=False, default=0, index=True)
     published_at = Column(DateTime, nullable=True)
     publish_attempts = Column(Integer, nullable=False, default=0)
     publish_last_attempt_at = Column(DateTime, nullable=True)

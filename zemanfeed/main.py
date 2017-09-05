@@ -297,11 +297,27 @@ class App(Cmd):
             if self.has_message(s, entity):
                 continue
 
+            if self.is_msg_duplicate(s, entity):
+                entity.skip_msg = True
+
             s.add(entity)
             s.commit()
             new_messages += 1
 
         logger.info('Crawl finished with %s new messages' % new_messages)
+
+    def is_msg_duplicate(self, s, entity):
+        """
+        Returns true if the message is duplicate - existing messages with same content, different page_idx are stored.
+        :param s:
+        :param entity:
+        :return:
+        """
+        return databaseutils.DbHelper.get_count(
+            s.query(DbDonations)
+                .filter(DbDonations.uid == entity.uid) \
+                .filter(DbDonations.page_idx != entity.page_idx)
+        ) > 0
 
     def has_message(self, s, entity):
         """
@@ -310,10 +326,10 @@ class App(Cmd):
         :type entity: DbDonations
         :return:
         """
-        if entity.uid is None:
-            entity.uid = self.gen_uid(entity)
-
-        return s.query(DbDonations).filter(DbDonations.uid == entity.uid).first() is not None
+        return s.query(DbDonations)\
+                   .filter(DbDonations.uid == entity.uid)\
+                   .filter(DbDonations.page_idx == entity.page_idx)\
+                   .first() is not None
 
     def gen_uid(self, entity):
         """
@@ -409,6 +425,7 @@ class App(Cmd):
         """
         q = s.query(DbDonations)\
             .filter(DbDonations.published_at == None)\
+            .filter(DbDonations.skip_msg == 0)\
             .order_by(DbDonations.received_at, DbDonations.created_at)
         q = databaseutils.DbHelper.yield_limit(q, DbDonations.id, 100)
 
