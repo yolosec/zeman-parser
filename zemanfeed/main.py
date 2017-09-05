@@ -457,6 +457,7 @@ class App(Cmd):
             except tweepy.RateLimitError as rle:
                 logger.warning('Rate limit hit, sleep a while. %s' % rle)
                 self.interruptible_sleep(5*60)
+                break
 
             except Exception as ex:
                 logger.error('Exception in API publish: %s' % ex)
