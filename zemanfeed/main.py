@@ -261,21 +261,19 @@ class App(Cmd):
         }
 
         resp = requests.get('https://www.fio.cz/ib2/transparent?a=2501277007', headers=headers)
-        soup = BeautifulSoup(resp.content, 'html.parser')
 
         tree = html.fromstring(resp.content)
         rows = tree.xpath('//div[contains(@class, "content")]/table[@class="table"]/tbody/tr')
         for idx, row in enumerate(rows):
-            print(row)
-
+            entity = DbDonations()
+            entity.created_at = salch.func.now()
+            entity.received_at = util.try_parse_datetime_string(row[0].text)
+            entity.message = row[4][0].text.strip()
+            entity.donor = row[3].text.strip()
+            entity.amount = "".join(row[1].text[:-6].split()).replace(',', '.')
+            # s.add(entity)
+            # s.commit()
         # Template to add to DB
-        entity = DbDonations()
-        entity.created_at = salch.func.now()
-        entity.received_at = util.try_parse_datetime_string('05.09.2017')
-        entity.message = 'test'
-        entity.amount = 0.1
-        # s.add(entity)
-        # s.commit()
 
     #
     # Publish
