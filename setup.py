@@ -20,7 +20,8 @@ install_requires = [
     'SQLAlchemy',
     'mem_top',
     'python-dateutil',
-    'lxml'
+    'lxml',
+    'facebook-sdk'
 ]
 
 # TLS SNI for older python

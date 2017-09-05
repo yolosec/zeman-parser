@@ -24,6 +24,7 @@ import mem_top
 import queue
 import sqlalchemy as salch
 import tweepy
+import facebook
 from blessed import Terminal
 from cmd2 import Cmd
 
@@ -35,6 +36,7 @@ from core import Core
 from daemon import Daemon
 from database import Base as DB_Base
 from database import DbDonations
+from errors import FbError
 
 __author__ = 'yolosec'
 logger = logging.getLogger(__name__)
@@ -78,6 +80,7 @@ class App(Cmd):
 
         self.crawl_thread = None
         self.publish_thread = None
+        self.publish_fb_thread = None
 
         self.db_config = None
         self.engine = None
@@ -85,6 +88,7 @@ class App(Cmd):
 
         self.api = None
         self.auth = None
+        self.graph = None
 
     def return_code(self, code=0):
         self.last_result = code
@@ -188,6 +192,21 @@ class App(Cmd):
         """
         if self.api is None:
             self.twitter_login()
+
+    def fb_login(self):
+        """
+        FB login
+        :return:
+        """
+        self.graph = facebook.GraphAPI(self.config.fb_access_token, version='2.10')
+
+    def fb_login_if_needed(self):
+        """
+        FB login if needed
+        :return:
+        """
+        if self.graph is None:
+            self.fb_login()
 
     #
     # Work
@@ -387,8 +406,7 @@ class App(Cmd):
 
     def publish_main(self):
         """
-        Main thread for monitoring internal state & dumping it to a file.
-        Important also for storing the whole state and resume after the restart.
+        Publishing to the Twitter
         :return:
         """
         logger.info('Publish thread started %s %s %s' % (os.getpid(), os.getppid(), threading.current_thread()))
@@ -490,10 +508,122 @@ class App(Cmd):
                 logger.error('Exception in API publish: %s' % ex)
                 raise
 
-    def donation_to_msg(self, donation):
+    def publish_fb_main(self):
+        """
+        Publishing to a FB
+        :return:
+        """
+        logger.info('Publish FB thread started %s %s %s' % (os.getpid(), os.getppid(), threading.current_thread()))
+        try:
+            while not self.stop_event.is_set():
+                s = None
+                try:
+                    self.interruptible_sleep(2)
+
+                    s = self.session()
+                    self.publish_fb_cycle(s)
+
+                except Exception as e:
+                    traceback.print_exc()
+                    logger.error('Exception in FB publishing: %s', e)
+
+                finally:
+                    util.silent_close(s)
+
+        except Exception as e:
+            traceback.print_exc()
+            logger.error('Exception in FB publishing: %s' % e)
+
+        finally:
+            pass
+
+        logger.info('Publish FB loop terminated')
+
+    def publish_fb_cycle(self, s):
+        """
+        Publish new stuff to the FB page
+        :param s: session
+        :return:
+        """
+        q = s.query(DbDonations)\
+            .filter(DbDonations.fb_published_at == None)\
+            .filter(DbDonations.fb_skip_msg == 0)\
+            .filter(DbDonations.skip_msg == 0)\
+            .order_by(DbDonations.received_at, DbDonations.created_at)
+        q = databaseutils.DbHelper.yield_limit(q, DbDonations.id, 100)
+
+        for donation in q:  # type: DbDonations
+            if self.stop_event.is_set():
+                break
+
+            message = None
+            try:
+                # sleep before page load. If there is an exception or empty page we sleep
+                # to avoid hitting usage limits.
+                self.interruptible_sleep(self.args.sleep_fb)
+
+                message = self.donation_to_msg(donation, twitter=False)
+                if self.args.dryrun:
+                    logger.info('Publishing FB: %s' % message)
+                    continue
+
+                donation.fb_publish_attempts += 1
+                donation.fb_publish_last_attempt_at = salch.func.now()
+                s.commit()
+
+                # Add a link and write a message about it.
+                res = self.graph.put_object(
+                    parent_object="me",
+                    connection_name="feed",
+                    message=message)  # link="https://www.facebook.com")
+
+                if 'error' in res:
+                    raise FbError(error=res['error'])
+
+                donation.fb_post_id = res['id']
+                donation.fb_published_at = salch.func.now()
+                s.commit()
+
+                if self.args.test:
+                    self.interruptible_sleep(60)
+
+            except FbError as fe:
+                code = fe.error['code']
+                if code == 506:
+                    logger.info('Duplicate FB status: %s' % donation.id)
+                    donation.fb_skip_msg = 1
+                    s.commit()
+
+                elif code == 341 or code == 17 or code == 4:
+                    logger.warning('FB rate limit - over limit')
+                    self.interruptible_sleep(10 * 60)
+                    raise
+
+                elif code == 368:
+                    logger.warning('FB policy error')
+                    self.interruptible_sleep(2 * 60)
+                    raise
+
+                elif code == 190:
+                    logger.warning('FB Token expired')
+                    self.interruptible_sleep(100 * 60)
+                    raise
+
+                else:
+                    logger.warning('Unknown FB error: %s' % code)
+                    self.interruptible_sleep(10 * 60)
+                    raise
+
+            except Exception as ex:
+                logger.error('Exception in FB API publish: %s' % ex)
+                self.interruptible_sleep(60)
+                raise
+
+    def donation_to_msg(self, donation, twitter=True):
         """
         Converts donation to the message
         :param donation:
+        :param twitter:
         :return:
         """
         to_del = ['MGR.', 's.r.o.', 'Ing.', 'a.s.', 'PhD.']
@@ -507,12 +637,19 @@ class App(Cmd):
             initials += x[0]
 
         money = "{}Kč".format(donation.amount).replace('.', ',')
-        if donation.message is None or len(donation.message) == 0:
-            return money
-        
-        # msg = "{}({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
-        msg = "{}: {}".format(money, util.utf8ize(donation.message))
-        return util.smart_truncate(msg, length=139)
+        if twitter:
+            if donation.message is None or len(donation.message) == 0:
+                return money
+
+            msg = "{}: {}".format(money, util.utf8ize(donation.message))
+            return util.smart_truncate(msg, length=139)
+
+        else:
+            if donation.message is None or len(donation.message) == 0:
+                return '%s: %s' % (util.utf8ize(donation.donor), money)
+
+            msg = "{} ({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
+            return msg
 
     #
     # Management, CLI, API, utils
@@ -552,6 +689,7 @@ class App(Cmd):
 
         # Kick off twitter - for initial load
         self.twitter_login_if_needed()
+        self.fb_login_if_needed()
 
         # Sub threads
         self.crawl_thread = threading.Thread(target=self.crawl_main, args=())
@@ -559,6 +697,9 @@ class App(Cmd):
 
         self.publish_thread = threading.Thread(target=self.publish_main, args=())
         self.publish_thread.start()
+
+        self.publish_fb_thread = threading.Thread(target=self.publish_fb_main, args=())
+        self.publish_fb_thread.start()
 
         # Daemon vs. run mode.
         if self.args.daemon:
@@ -591,11 +732,14 @@ class App(Cmd):
         parser.add_argument('--test', dest='test', action='store_const', const=True,
                             help='enables test mode')
 
-        parser.add_argument('--sleep-crawl', dest='sleep_crawl', default=3*60, type=float,
-                            help='sleep between crawl cycles')
-
         parser.add_argument('-s', '--sleep', dest='sleep', default=20, type=float,
                             help='sleep between post publish')
+
+        parser.add_argument('--sleep-fb', dest='sleep_fb', default=20, type=float,
+                            help='sleep between post publish to FB')
+
+        parser.add_argument('--sleep-crawl', dest='sleep_crawl', default=3*60, type=float,
+                            help='sleep between crawl cycles')
 
         parser.add_argument('-f', '--dry', dest='dryrun', action='store_const', const=True, default=False,
                             help='dry run (no twitter action taken)')

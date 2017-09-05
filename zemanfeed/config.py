@@ -99,5 +99,19 @@ class Config(object):
     def access_secret(self, val):
         self.set_config('access_secret', val)
 
+    @property
+    def fb_app_id(self):
+        return self.get_config('fb_app_id')
 
+    @property
+    def fb_app_secret(self):
+        return self.get_config('fb_app_secret')
+
+    @property
+    def fb_user(self):
+        return self.get_config('fb_user')
+
+    @property
+    def fb_access_token(self):
+        return self.get_config('fb_access_token')
 

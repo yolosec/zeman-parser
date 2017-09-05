@@ -16,3 +16,8 @@ class InvalidStatus(Error):
 class RequestFailed(Error):
     """API request failed"""
 
+
+class FbError(Error):
+    def __init__(self, error):
+        self.error = error
+
