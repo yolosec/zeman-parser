@@ -472,6 +472,11 @@ class App(Cmd):
                     self.interruptible_sleep(10 * 60)
                     raise
 
+                elif te.api_code == 185:
+                    logger.warning('Tweepy error 185 - over limit')
+                    self.interruptible_sleep(15 * 60)
+                    raise
+
                 elif te.api_code == 187:
                     logger.warning('Tweepy error 187 - duplicate status')
                     donation.skip_msg = 1
