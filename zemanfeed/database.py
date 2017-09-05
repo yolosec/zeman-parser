@@ -17,10 +17,11 @@ class DbDonations(Base):
     id = Column(BigInteger, primary_key=True)
 
     created_at = Column(DateTime, nullable=True)
-    received_at = Column(DateTime, nullable=True)
+    received_at = Column(DateTime, nullable=True, index=True)
     donor = Column(String(255), nullable=True)
     amount = Column(Float, nullable=True)
     message = Column(Text, nullable=True)
+    page_idx = Column(Integer, nullable=False, default=0, index=True)
     uid = Column(String(64), nullable=True, index=True)
 
     published_at = Column(DateTime, nullable=True)
