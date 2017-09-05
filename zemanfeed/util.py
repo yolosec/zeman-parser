@@ -508,14 +508,14 @@ def unix_time(dt):
     return float((dt - epoch).total_seconds())
 
 
-def try_parse_datetime_string(x):
+def try_parse_datetime_string(x, **kwargs):
     """
     Tries to parse try_parse_datetime_string
     :param str:
     :return:
     """
     try:
-        return dateutil.parser.parse(x)
+        return dateutil.parser.parse(x, **kwargs)
     except:
         pass
     return None
@@ -532,3 +532,30 @@ def try_get_datetime_from_timestamp(x):
     except:
         pass
     return None
+
+
+def try_float(x):
+    """
+    Convert to float
+    :param x:
+    :return:
+    """
+    if x is None:
+        return None
+    try:
+        return try_float(x)
+    except:
+        pass
+
+
+def utf8ize(x):
+    """
+    Converts to utf8 if non-empty
+    :param x:
+    :return:
+    """
+    if x is None:
+        return None
+    return x.encode('utf-8')
+
+
