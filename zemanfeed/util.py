@@ -30,11 +30,13 @@ import errors
 
 logger = logging.getLogger(__name__)
 
+
 def smart_truncate(content, length=140, suffix='...'):
     if len(content) <= length:
         return content
     else:
         return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
+
 
 def make_or_verify_dir(directory, mode=0o755, uid=0, strict=False):
     """Make sure directory exists with proper permissions.
@@ -322,143 +324,8 @@ def merge(dst, src, path=None, abort_conflict=False):
     return dst
 
 
-def gen_ss_cert(key, domains, not_before=None,
-                validity=(7 * 24 * 60 * 60), force_san=True):
-    """Generate new self-signed certificate.
-
-    :type domains: `list` of `unicode`
-    :param OpenSSL.crypto.PKey key:
-    :param bool force_san:
-
-    If more than one domain is provided, all of the domains are put into
-    ``subjectAltName`` X.509 extension and first domain is set as the
-    subject CN. If only one domain is provided no ``subjectAltName``
-    extension is used, unless `force_san` is ``True``.
-
-    """
-    assert domains, "Must provide one or more hostnames for the cert."
-    cert = OpenSSL.crypto.X509()
-    cert.set_serial_number(int(binascii.hexlify(OpenSSL.rand.bytes(16)), 16))
-    cert.set_version(2)
-
-    extensions = [
-        OpenSSL.crypto.X509Extension(
-            b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
-    ]
-
-    cert.get_subject().CN = domains[0]
-    # TODO: what to put into cert.get_subject()?
-    cert.set_issuer(cert.get_subject())
-
-    if force_san or len(domains) > 1:
-        extensions.append(OpenSSL.crypto.X509Extension(
-            b"subjectAltName",
-            critical=False,
-            value=b", ".join(b"DNS:" + d.encode() for d in domains)
-        ))
-
-    cert.add_extensions(extensions)
-
-    cert.gmtime_adj_notBefore(0 if not_before is None else not_before)
-    cert.gmtime_adj_notAfter(validity)
-
-    cert.set_pubkey(key)
-    cert.sign(key, "sha256")
-    return cert
-
-
 def get_file_mtime(file):
     return os.path.getmtime(file)
-
-
-def get_os_info(filepath="/etc/os-release"):
-    """
-    Get OS name and version
-
-    :param str filepath: File path of os-release file
-    :returns: (os_name, os_version)
-    :rtype: `tuple` of `str`
-    """
-
-    if os.path.isfile(filepath):
-        # Systemd os-release parsing might be viable
-        os_name, os_version = get_systemd_os_info(filepath=filepath)
-        if os_name:
-            return (os_name, os_version)
-
-    # Fallback to platform module
-    return get_python_os_info()
-
-
-def get_os_info_ua(filepath="/etc/os-release"):
-    """
-    Get OS name and version string for User Agent
-
-    :param str filepath: File path of os-release file
-    :returns: os_ua
-    :rtype: `str`
-    """
-
-    if os.path.isfile(filepath):
-        os_ua = _get_systemd_os_release_var("PRETTY_NAME", filepath=filepath)
-        if not os_ua:
-            os_ua = _get_systemd_os_release_var("NAME", filepath=filepath)
-        if os_ua:
-            return os_ua
-
-    # Fallback
-    return " ".join(get_python_os_info())
-
-
-def get_systemd_os_info(filepath="/etc/os-release"):
-    """
-    Parse systemd /etc/os-release for distribution information
-
-    :param str filepath: File path of os-release file
-    :returns: (os_name, os_version)
-    :rtype: `tuple` of `str`
-    """
-
-    os_name = _get_systemd_os_release_var("ID", filepath=filepath)
-    os_version = _get_systemd_os_release_var("VERSION_ID", filepath=filepath)
-
-    return (os_name, os_version)
-
-
-def get_systemd_os_like(filepath="/etc/os-release"):
-    """
-    Get a list of strings that indicate the distribution likeness to
-    other distributions.
-
-    :param str filepath: File path of os-release file
-    :returns: List of distribution acronyms
-    :rtype: `list` of `str`
-    """
-
-    return _get_systemd_os_release_var("ID_LIKE", filepath).split(" ")
-
-
-def _get_systemd_os_release_var(varname, filepath="/etc/os-release"):
-    """
-    Get single value from systemd /etc/os-release
-
-    :param str varname: Name of variable to fetch
-    :param str filepath: File path of os-release file
-    :returns: requested value
-    :rtype: `str`
-    """
-
-    var_string = varname+"="
-    if not os.path.isfile(filepath):
-        return ""
-    with open(filepath, 'r') as fh:
-        contents = fh.readlines()
-
-    for line in contents:
-        if line.strip().startswith(var_string):
-            # Return the value of var, normalized
-            return _normalize_string(line.strip()[len(var_string):])
-    return ""
 
 
 def _normalize_string(orig):
@@ -468,45 +335,6 @@ def _normalize_string(orig):
     """
     return orig.replace('"', '').replace("'", "").strip()
 
-
-def get_python_os_info():
-    """
-    Get Operating System type/distribution and major version
-    using python platform module
-
-    :returns: (os_name, os_version)
-    :rtype: `tuple` of `str`
-    """
-    info = platform.system_alias(
-        platform.system(),
-        platform.release(),
-        platform.version()
-    )
-    os_type, os_ver, _ = info
-    os_type = os_type.lower()
-    if os_type.startswith('linux'):
-        info = platform.linux_distribution()
-        # On arch, platform.linux_distribution() is reportedly ('','',''),
-        # so handle it defensively
-        if info[0]:
-            os_type = info[0]
-        if info[1]:
-            os_ver = info[1]
-    elif os_type.startswith('darwin'):
-        os_ver = subprocess.Popen(
-            ["sw_vers", "-productVersion"],
-            stdout=subprocess.PIPE
-        ).communicate()[0].rstrip('\n')
-    elif os_type.startswith('freebsd'):
-        # eg "9.3-RC3-p1"
-        os_ver = os_ver.partition("-")[0]
-        os_ver = os_ver.partition(".")[0]
-    elif platform.win32_ver()[1]:
-        os_ver = platform.win32_ver()[1]
-    else:
-        # Cases known to fall here: Cygwin python
-        os_ver = ''
-    return os_type, os_ver
 
 # Just make sure we don't get pwned... Make sure that it also doesn't
 # start with a period or have two consecutive periods <- this needs to
