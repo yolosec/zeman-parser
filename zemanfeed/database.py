@@ -21,6 +21,7 @@ class DbDonations(Base):
     donor = Column(String(255), nullable=True)
     amount = Column(Float, nullable=True)
     message = Column(Text, nullable=True)
+    uid = Column(String(64), nullable=True, index=True)
 
     published_at = Column(DateTime, nullable=True)
     publish_attempts = Column(Integer, nullable=False, default=0)
