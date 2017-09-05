@@ -507,7 +507,7 @@ class App(Cmd):
         
         # msg = "{}({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
         msg = "{}: {}".format(money, util.utf8ize(donation.message))
-        return util.smart_truncate(msg)
+        return util.smart_truncate(msg, length=139)
 
     #
     # Management, CLI, API, utils
