@@ -34,11 +34,6 @@ __author__ = 'yolosec'
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.INFO)
 
-def smart_truncate(content, length=140, suffix='...'):
-    if len(content) <= length:
-        return content
-    else:
-        return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
 
 class AppDeamon(Daemon):
     def __init__(self, *args, **kwargs):
