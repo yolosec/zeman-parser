@@ -28,6 +28,7 @@ class DbDonations(Base):
     published_at = Column(DateTime, nullable=True)
     publish_attempts = Column(Integer, nullable=False, default=0)
     publish_last_attempt_at = Column(DateTime, nullable=True)
+    tweet_id = Column(String(64), nullable=True)
 
 
 

@@ -448,8 +448,9 @@ class App(Cmd):
                 donation.publish_last_attempt_at = salch.func.now()
                 s.commit()
 
-                self.api.update_status(message)
+                res = self.api.update_status(message)
 
+                donation.tweet_id = res['id_str']
                 donation.published_at = salch.func.now()
                 s.commit()
 
@@ -465,10 +466,12 @@ class App(Cmd):
                 if te.api_code == 403:
                     logger.warning('Tweepy error 403 - cannot tweet this: %s' % (message))
                     continue
+
                 elif te.api_code == 326:
                     logger.warning('Tweepy error 326 - account locked')
                     self.interruptible_sleep(10 * 60)
                     raise
+
                 else:
                     logger.error('Generic tweepy error: %s : %s' % (te, donation.id))
                     raise
