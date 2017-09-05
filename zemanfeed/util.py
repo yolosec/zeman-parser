@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import binascii
 import errno
 import grp
 import hashlib
@@ -9,21 +8,18 @@ import hmac
 import json
 import logging
 import os
-import platform
 import pwd
 import random
 import re
 import shutil
 import stat
 import string
-import subprocess
 import time
 import types
 from datetime import datetime
+
 import dateutil
 import dateutil.parser
-
-import OpenSSL
 from six import iteritems
 
 import errors

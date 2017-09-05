@@ -19,7 +19,8 @@ install_requires = [
     'tweepy',
     'SQLAlchemy',
     'mem_top',
-    'python-dateutil'
+    'python-dateutil',
+    'lxml'
 ]
 
 # TLS SNI for older python

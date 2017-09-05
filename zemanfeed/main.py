@@ -11,6 +11,10 @@ import threading
 import time
 import traceback
 from threading import Lock as Lock
+from bs4 import BeautifulSoup
+import requests
+from lxml import etree
+from lxml import html
 
 import argparse
 import coloredlogs
@@ -221,7 +225,7 @@ class App(Cmd):
             while not self.stop_event.is_set():
                 s = None
                 try:
-                    self.interruptible_sleep(10)  # crawl each 10 seconds
+                    self.interruptible_sleep(1)
 
                     s = self.session()
                     self.crawl_cycle(s)
@@ -232,6 +236,7 @@ class App(Cmd):
 
                 finally:
                     util.silent_close(s)
+                    self.interruptible_sleep(10)
 
         except Exception as e:
             traceback.print_exc()
@@ -250,6 +255,18 @@ class App(Cmd):
         """
         # TODO: add
         # TODO: crawl page, add new donations to the database (not added before).
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
+        }
+
+        resp = requests.get('https://www.fio.cz/ib2/transparent?a=2501277007', headers=headers)
+        soup = BeautifulSoup(resp.content, 'html.parser')
+
+        tree = html.fromstring(resp.content)
+        rows = tree.xpath('//div[contains(@class, "content")]/table[@class="table"]/tbody/tr')
+        for idx, row in enumerate(rows):
+            print(row)
 
         # Template to add to DB
         entity = DbDonations()
