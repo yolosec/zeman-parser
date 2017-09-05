@@ -463,12 +463,15 @@ class App(Cmd):
 
             except tweepy.TweepError as te:
                 if te.api_code == 403:
-                    logger.error('Tweepy error 403 - cannot tweet this: %s' % (message))
+                    logger.warning('Tweepy error 403 - cannot tweet this: %s' % (message))
                     continue
-
+                elif te.api_code == 326:
+                    logger.warning('Tweepy error 326 - account locked')
+                    self.interruptible_sleep(10 * 60)
+                    raise
                 else:
                     logger.error('Generic tweepy error: %s : %s' % (te, donation.id))
-                    continue
+                    raise
 
             except Exception as ex:
                 logger.error('Exception in API publish: %s' % ex)
