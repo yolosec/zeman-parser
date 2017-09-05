@@ -18,7 +18,8 @@ install_requires = [
     'coloredlogs',
     'tweepy',
     'SQLAlchemy',
-    'mem_top'
+    'mem_top',
+    'python-dateutil'
 ]
 
 # TLS SNI for older python
