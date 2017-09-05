@@ -13,6 +13,7 @@ Use long lived access token
 
 Src:
 https://www.contentecontent.com/blog/2015/05/post-from-server-to-facebook-page-with-php-sdk-4/
+http://www.devils-heaven.com/facebook-access-tokens/
 
 # User access token
 
