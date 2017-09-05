@@ -30,6 +30,11 @@ class DbDonations(Base):
     publish_last_attempt_at = Column(DateTime, nullable=True)
     tweet_id = Column(String(64), nullable=True)
 
+    fb_skip_msg = Column(SmallInteger, nullable=False, default=0, index=True)
+    fb_published_at = Column(DateTime, nullable=True)
+    fb_publish_attempts = Column(Integer, nullable=False, default=0)
+    fb_publish_last_attempt_at = Column(DateTime, nullable=True)
+    fb_post_id = Column(String(92), nullable=True)
 
 
 
