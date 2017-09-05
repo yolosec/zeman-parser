@@ -450,7 +450,7 @@ class App(Cmd):
 
                 res = self.api.update_status(message)
 
-                donation.tweet_id = res['id_str']
+                donation.tweet_id = res.id_str
                 donation.published_at = salch.func.now()
                 s.commit()
 
@@ -471,6 +471,11 @@ class App(Cmd):
                     logger.warning('Tweepy error 326 - account locked')
                     self.interruptible_sleep(10 * 60)
                     raise
+
+                elif te.api_code == 187:
+                    logger.warning('Tweepy error 187 - duplicate status')
+                    donation.skip_msg = 1
+                    s.commit()
 
                 else:
                     logger.error('Generic tweepy error: %s : %s' % (te, donation.id))
