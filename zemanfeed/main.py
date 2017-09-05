@@ -13,6 +13,8 @@ import traceback
 from threading import Lock as Lock
 from bs4 import BeautifulSoup
 import requests
+import hashlib
+import datetime
 from lxml import etree
 from lxml import html
 
@@ -74,13 +76,8 @@ class App(Cmd):
         self.stop_event = threading.Event()
         self.local_data = threading.local()
 
-        self.follow_queue = queue.PriorityQueue()
-        self.follow_queue_set = set()
-        self.follow_queue_lock = Lock()
         self.crawl_thread = None
-
         self.publish_thread = None
-        self.monitor_dir = None
 
         self.db_config = None
         self.engine = None
@@ -236,7 +233,7 @@ class App(Cmd):
 
                 finally:
                     util.silent_close(s)
-                    self.interruptible_sleep(10)
+                    self.interruptible_sleep(20)
 
         except Exception as e:
             traceback.print_exc()
@@ -253,27 +250,120 @@ class App(Cmd):
         :param s:
         :return:
         """
-        # TODO: add
-        # TODO: crawl page, add new donations to the database (not added before).
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) '
                           'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
         }
 
-        resp = requests.get('https://www.fio.cz/ib2/transparent?a=2501277007', headers=headers)
+        new_messages = 0
+        date_span = self.gen_day_span(s)
+        from_date_str, to_date_str = [x.strftime("%d.%m.%Y") for x in date_span]
+        url = 'https://www.fio.cz/ib2/transparent?a=2501277007&f=%s&t=%s' % (from_date_str, to_date_str)
+        logger.debug('URL to fetch: %s' % url)
+
+        resp = requests.get(url, headers=headers, timeout=30)
 
         tree = html.fromstring(resp.content)
         rows = tree.xpath('//div[contains(@class, "content")]/table[@class="table"]/tbody/tr')
-        for idx, row in enumerate(rows):
+
+        idx_root = None
+        idx_offset = 0
+        for idx, row in enumerate(reversed(list(rows))):
             entity = DbDonations()
-            entity.created_at = salch.func.now()
-            entity.received_at = util.try_parse_datetime_string(row[0].text)
-            entity.message = row[4][0].text.strip()
-            entity.donor = row[3].text.strip()
-            entity.amount = "".join(row[1].text[:-6].split()).replace(',', '.')
-            # s.add(entity)
-            # s.commit()
-        # Template to add to DB
+            try:
+                entity.created_at = salch.func.now()
+                entity.received_at = util.try_parse_datetime_string(row[0].text, dayfirst=True)
+
+                # page_idx is index on the given day
+                if entity.received_at is not None:
+                    if idx_root is None:
+                        idx_root = entity.received_at
+                    elif idx_root.strftime("%d-%m-%Y") != entity.received_at.strftime("%d-%m-%Y"):
+                        idx_offset = idx
+                        idx_root = entity.received_at
+
+                entity.page_idx = idx - idx_offset
+                entity.message = (row[4][0].text).strip() if len(row[4]) > 0 else None
+                entity.donor = (row[3].text).strip()
+                entity.amount = (row[1].attrib['data-value'])
+                entity.page_idx = idx
+                entity.uid = self.gen_uid(entity)
+
+            except Exception as e:
+                logger.warning(traceback.format_exc())
+                logger.error('Exception in parsing at idx: %s' % idx)
+                break
+
+            if self.has_message(s, entity):
+                continue
+
+            s.add(entity)
+            s.commit()
+            new_messages += 1
+
+        logger.info('Crawl finished with %s new messages' % new_messages)
+
+    def has_message(self, s, entity):
+        """
+        True if message is already processed
+        :param entity:
+        :type entity: DbDonations
+        :return:
+        """
+        if entity.uid is None:
+            entity.uid = self.gen_uid(entity)
+
+        return s.query(DbDonations).filter(DbDonations.uid == entity.uid).first() is not None
+
+    def gen_uid(self, entity):
+        """
+        Generates unique ID for the donation object
+        :param entity:
+        :type entity: DbDonations
+        :return:
+        """
+        to_hash = u'%s;%s;%s;%s;' % (
+            entity.received_at.strftime('%Y-%m-%d %H:%M:%S'),
+            entity.donor,
+            entity.amount,
+            entity.message
+        )
+
+        return hashlib.md5(to_hash.encode('utf8')).hexdigest()
+
+    def gen_day_span(self, s):
+        """
+        Generates day span to load, ending on today
+        :param s:
+        :return:
+        """
+        now = datetime.datetime.now()
+        start_time = datetime.datetime(year=2017, month=9, day=2)  # default start
+
+        newest = self.newest_record(s)
+        if newest is not None:
+            start_time = newest.received_at
+
+        end_time = start_time + datetime.timedelta(days=1)
+        if end_time >= now:
+            end_time = now
+
+        if start_time >= end_time:
+            start_time = end_time
+
+        return start_time, end_time
+
+    def newest_record(self, s):
+        """
+        Returns newest record found
+        :param s:
+        :return:
+        """
+        return s.query(DbDonations)\
+            .filter(DbDonations.received_at != None)\
+            .order_by(salch.desc(DbDonations.received_at))\
+            .limit(1)\
+            .first()
 
     #
     # Publish
@@ -323,6 +413,9 @@ class App(Cmd):
         q = databaseutils.DbHelper.yield_limit(q, DbDonations.id, 100)
 
         for donation in q:  # type: DbDonations
+            if self.stop_event.is_set():
+                break
+
             try:
                 # sleep before page load. If there is an exception or empty page we sleep
                 # to avoid hitting usage limits.
@@ -360,7 +453,7 @@ class App(Cmd):
         """
         to_del = ['MGR.', 's.r.o.', 'Ing.', 'a.s.', 'PhD.']
 
-        tmp = donation.donor.upper()
+        tmp = util.utf8ize(donation.donor).upper()
         for s in to_del:
             tmp = tmp.replace(s.upper(), "")
 
@@ -369,7 +462,7 @@ class App(Cmd):
             initials += x[0]
 
         money = "{}Kč".format(donation.amount).replace('.', ',')
-        msg = "{}({}):{}".format(initials, money, donation.message)
+        msg = "{}({}): {}".format(initials, money, util.utf8ize(donation.message))
         return util.smart_truncate(msg)
 
     #
