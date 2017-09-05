@@ -470,7 +470,7 @@ class App(Cmd):
         """
         to_del = ['MGR.', 's.r.o.', 'Ing.', 'a.s.', 'PhD.']
 
-        tmp = util.utf8ize(donation.donor).upper()
+        tmp = donation.donor.upper()
         for s in to_del:
             tmp = tmp.replace(s.upper(), "")
 
@@ -479,7 +479,7 @@ class App(Cmd):
             initials += x[0]
 
         money = "{}Kč".format(donation.amount).replace('.', ',')
-        msg = "{}({}): {}".format(initials, money, util.utf8ize(donation.message))
+        msg = "{}({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
         return util.smart_truncate(msg)
 
     #
