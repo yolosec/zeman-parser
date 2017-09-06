@@ -468,6 +468,7 @@ class App(Cmd):
 
                     donation.skip_msg = 1
                     s.commit()
+                    continue
 
                 message = self.donation_to_msg(donation)
                 if self.args.dryrun:
@@ -583,6 +584,7 @@ class App(Cmd):
 
                     donation.skip_msg = 1
                     s.commit()
+                    continue
 
                 message = self.donation_to_msg(donation, twitter=False)
                 if self.args.dryrun:
