@@ -18,6 +18,6 @@ class RequestFailed(Error):
 
 
 class FbError(Error):
-    def __init__(self, error):
+    def __init__(self, error=None):
         self.error = error
 

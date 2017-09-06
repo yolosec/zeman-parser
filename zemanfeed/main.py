@@ -589,35 +589,50 @@ class App(Cmd):
 
             except FbError as fe:
                 code = fe.error['code']
-                if code == 506:
-                    logger.info('Duplicate FB status: %s' % donation.id)
-                    donation.fb_skip_msg = 1
-                    s.commit()
+                self.handle_exc_code(s, donation, code, fe)
 
-                elif code == 341 or code == 17 or code == 4:
-                    logger.warning('FB rate limit - over limit')
-                    self.interruptible_sleep(10 * 60)
-                    raise
-
-                elif code == 368:
-                    logger.warning('FB policy error')
-                    self.interruptible_sleep(2 * 60)
-                    raise
-
-                elif code == 190:
-                    logger.warning('FB Token expired')
-                    self.interruptible_sleep(100 * 60)
-                    raise
-
-                else:
-                    logger.warning('Unknown FB error: %s' % code)
-                    self.interruptible_sleep(10 * 60)
-                    raise
+            except facebook.GraphAPIError as ge:
+                self.handle_exc_code(s, donation, ge.code, ge)
 
             except Exception as ex:
-                logger.error('Exception in FB API publish: %s' % ex)
+                logger.error('Exception in FB API publish')
+                traceback.print_exc()
                 self.interruptible_sleep(60)
                 raise
+
+    def handle_exc_code(self, s, donation, code, exc):
+        """
+        Exception  handling code
+        :param s:
+        :param donation:
+        :param code:
+        :param exc:
+        :return:
+        """
+        if code == 506:
+            logger.info('Duplicate FB status: %s' % donation.id)
+            donation.fb_skip_msg = 1
+            s.commit()
+
+        elif code == 341 or code == 17 or code == 4:
+            logger.warning('FB rate limit - over limit')
+            self.interruptible_sleep(10 * 60)
+            raise FbError()
+
+        elif code == 368:
+            logger.warning('FB policy error')
+            self.interruptible_sleep(20 * 60)
+            raise FbError()
+
+        elif code == 190:
+            logger.warning('FB Token expired')
+            self.interruptible_sleep(100 * 60)
+            raise FbError()
+
+        else:
+            logger.warning('Unknown FB error: %s' % code)
+            self.interruptible_sleep(10 * 60)
+            raise FbError()
 
     def donation_to_msg(self, donation, twitter=True):
         """
