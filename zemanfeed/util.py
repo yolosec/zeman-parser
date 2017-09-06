@@ -33,7 +33,13 @@ def smart_truncate(content, length=140, suffix=None):
     else:
         if suffix is None:
             suffix = u"\u2026".encode('utf8')
-        return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
+
+    length -= len(suffix)
+    content = content.strip()
+    ridx = content.rfind(' ', 0, length)
+    if ridx == -1:
+        return content[:length] + suffix
+    return content[:ridx] + suffix
 
 
 def make_or_verify_dir(directory, mode=0o755, uid=0, strict=False):
