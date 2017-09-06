@@ -415,6 +415,8 @@ class App(Cmd):
                 s = None
                 try:
                     self.interruptible_sleep(2)
+                    if self.args.no_tw:
+                        continue
 
                     s = self.session()
                     self.publish_cycle(s)
@@ -519,6 +521,8 @@ class App(Cmd):
                 s = None
                 try:
                     self.interruptible_sleep(2)
+                    if self.args.no_fb:
+                        continue
 
                     s = self.session()
                     self.publish_fb_cycle(s)
@@ -758,6 +762,12 @@ class App(Cmd):
 
         parser.add_argument('-f', '--dry', dest='dryrun', action='store_const', const=True, default=False,
                             help='dry run (no twitter action taken)')
+
+        parser.add_argument('--no-tw', dest='no_tw', default=False, action='store_const', const=True,
+                            help='No twitter')
+
+        parser.add_argument('--no-fb', dest='no_fb', default=False, action='store_const', const=True,
+                            help='No FB')
 
         parser.add_argument('-d', '--daemon', dest='daemon', default=False, action='store_const', const=True,
                             help='Runs in daemon mode, no CLI')
