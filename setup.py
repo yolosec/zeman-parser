@@ -21,7 +21,8 @@ install_requires = [
     'mem_top',
     'python-dateutil',
     'lxml',
-    'facebook-sdk'
+    'facebook-sdk',
+    'unidecode'
 ]
 
 # TLS SNI for older python

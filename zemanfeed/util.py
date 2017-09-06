@@ -567,3 +567,13 @@ def utf8ize(x):
     return x.encode('utf-8')
 
 
+
+def is_empty(x):
+    """
+    Returns true if string is None or empty
+    :param x:
+    :return:
+    """
+    return x is None or len(x) == 0
+
+

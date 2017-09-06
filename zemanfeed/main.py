@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 import requests
 import hashlib
 import datetime
+import re
 from lxml import etree
 from lxml import html
 
@@ -27,6 +28,7 @@ import tweepy
 import facebook
 from blessed import Terminal
 from cmd2 import Cmd
+from unidecode import unidecode
 
 import databaseutils
 import util
@@ -459,6 +461,14 @@ class App(Cmd):
                 # to avoid hitting usage limits.
                 self.interruptible_sleep(self.args.sleep)
 
+                if self.is_rubbish_msg(donation):
+                    if self.args.dryrun:
+                        logger.info('Rubbish: %s' % donation.message)
+                        continue
+
+                    donation.skip_msg = 1
+                    s.commit()
+
                 message = self.donation_to_msg(donation)
                 if self.args.dryrun:
                     logger.info('Publishing: %s' % message)
@@ -566,6 +576,14 @@ class App(Cmd):
                 # to avoid hitting usage limits.
                 self.interruptible_sleep(self.args.sleep_fb)
 
+                if self.is_rubbish_msg(donation):
+                    if self.args.dryrun:
+                        logger.info('Rubbish: %s' % donation.message)
+                        continue
+
+                    donation.skip_msg = 1
+                    s.commit()
+
                 message = self.donation_to_msg(donation, twitter=False)
                 if self.args.dryrun:
                     logger.info('Publishing FB: %s' % message)
@@ -669,6 +687,24 @@ class App(Cmd):
 
             msg = "{} ({}): {}".format(util.utf8ize(initials), money, util.utf8ize(donation.message))
             return msg
+
+    def is_rubbish_msg(self, donation):
+        """
+        Rubbish message has few normal characters in it
+        :param donation:
+        :return:
+        """
+        if util.is_empty(donation.message):
+            return False
+
+        message = donation.message
+        try:
+            message = unidecode(message)
+        except Exception as e:
+            logger.error('Error in unidecoding: %s' % repr(message))
+
+        text_only = re.sub(r'[^a-zA-Z]', '', message)
+        return (float(len(text_only)) / len(donation.message)) <= 0.20
 
     #
     # Management, CLI, API, utils
